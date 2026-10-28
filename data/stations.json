@@ -1,0 +1,164 @@
+[
+  {
+    "id": "1",
+    "name": "SomaFM: Groove Salad",
+    "genre": "Chillout",
+    "url": "http://ice1.somafm.com/groovesalad-128-mp3",
+    "country": "USA",
+    "bitrate": 128,
+    "favorite": true
+  },
+  {
+    "id": "2",
+    "name": "SomaFM: Drone Zone",
+    "genre": "Ambient",
+    "url": "http://ice1.somafm.com/dronezone-128-mp3",
+    "country": "USA",
+    "bitrate": 128,
+    "favorite": false
+  },
+  {
+    "id": "3",
+    "name": "Radio Paradise (Main Mix)",
+    "genre": "Rock",
+    "url": "http://stream.radioparadise.com/mp3-128",
+    "country": "USA",
+    "bitrate": 128,
+    "favorite": true
+  },
+  {
+    "id": "4",
+    "name": "Radio Paradise (Mellow)",
+    "genre": "Acoustic",
+    "url": "http://stream.radioparadise.com/mellow-128",
+    "country": "USA",
+    "bitrate": 128,
+    "favorite": false
+  },
+  {
+    "id": "5",
+    "name": "Radio Paradise (Rock)",
+    "genre": "Rock",
+    "url": "http://stream.radioparadise.com/rock-128",
+    "country": "USA",
+    "bitrate": 128,
+    "favorite": true
+  },
+  {
+    "id": "6",
+    "name": "Nightwave Plaza (Vaporwave)",
+    "genre": "Synthwave",
+    "url": "http://radio.plaza.one/mp3",
+    "country": "Global",
+    "bitrate": 128,
+    "favorite": true
+  },
+  {
+    "id": "7",
+    "name": "Lofi Radio Chill Beats",
+    "genre": "Lo-Fi",
+    "url": "https://stream.zeno.fm/f3wvbbqmdg8uv",
+    "country": "Global",
+    "bitrate": 128,
+    "favorite": true
+  },
+  {
+    "id": "8",
+    "name": "KEXP 90.3 FM Seattle",
+    "genre": "Indie",
+    "url": "https://kexp.streamguys1.com/kexp128.mp3",
+    "country": "USA",
+    "bitrate": 128,
+    "favorite": false
+  },
+  {
+    "id": "9",
+    "name": "Smooth Jazz Florida",
+    "genre": "Jazz",
+    "url": "http://us4.internet-radio.com:8266/stream",
+    "country": "USA",
+    "bitrate": 128,
+    "favorite": true
+  },
+  {
+    "id": "10",
+    "name": "Swiss Classical (Radio Swiss Classic)",
+    "genre": "Classical",
+    "url": "http://stream.srg-ssr.ch/m/rsc_de/mp3_128",
+    "country": "Switzerland",
+    "bitrate": 128,
+    "favorite": false
+  },
+  {
+    "id": "11",
+    "name": "Swiss Jazz (Radio Swiss Jazz)",
+    "genre": "Jazz",
+    "url": "http://stream.srg-ssr.ch/m/rsj/mp3_128",
+    "country": "Switzerland",
+    "bitrate": 128,
+    "favorite": false
+  },
+  {
+    "id": "12",
+    "name": "Rock Antenne Classic Rock",
+    "genre": "Rock",
+    "url": "https://stream.rockantenne.de/classic-perlen/stream/mp3",
+    "country": "Germany",
+    "bitrate": 128,
+    "favorite": true
+  },
+  {
+    "id": "13",
+    "name": "Ibiza Global Radio",
+    "genre": "Electronic",
+    "url": "https://listenssl.ibizaglobalradio.com:8024/ibizaglobalradio.mp3",
+    "country": "Spain",
+    "bitrate": 128,
+    "favorite": true
+  },
+  {
+    "id": "14",
+    "name": "RNE Radio Nacional de España",
+    "genre": "News",
+    "url": "https://rtvelivestream.akamaized.net/rne_r1_main.mp3",
+    "country": "Spain",
+    "bitrate": 128,
+    "favorite": false
+  },
+  {
+    "id": "15",
+    "name": "RNE Radio 3 (Cultura y Música)",
+    "genre": "Indie",
+    "url": "https://rtvelivestream.akamaized.net/rne_r3_main.mp3",
+    "country": "Spain",
+    "bitrate": 128,
+    "favorite": true
+  },
+  {
+    "id": "16",
+    "name": "BBC World Service News",
+    "genre": "News",
+    "url": "http://stream.live.vc.bbcmedia.co.uk/bbc_world_service",
+    "country": "UK",
+    "bitrate": 128,
+    "favorite": false
+  },
+  {
+    "id": "17",
+    "name": "Los 40 Principales",
+    "genre": "Pop",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/LOS40_SC",
+    "country": "Spain",
+    "bitrate": 128,
+    "favorite": false
+  },
+  {
+    "id": "18",
+    "name": "Cadena Dial (Pop en Español)",
+    "genre": "Latin",
+    "url": "https://playerservices.streamtheworld.com/api/livestream-redirect/CADENADIAL_SC",
+    "country": "Spain",
+    "bitrate": 128,
+    "favorite": false
+  }
+]

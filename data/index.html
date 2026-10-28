@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TinyRadio | ESP32-C3 Web Radio</title>
+  <meta name="description" content="Radio de internet moderna e interactiva con ESP32-C3 Mini y portal cautivo">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Banner de Portal Cautivo (Se muestra automáticamente en modo SoftAP) -->
+    <div class="setup-banner hidden" id="setupBanner">
+      <div class="setup-banner-content">
+        <span class="setup-icon">📶</span>
+        <div class="setup-text">
+          <strong>Modo Configuración (Portal Cautivo)</strong>
+          <span>Conecta el ESP32 a la red WiFi de tu casa para transmitir audio y sincronizar estaciones.</span>
+        </div>
+      </div>
+      <button class="btn primary btn-sm" id="bannerWifiBtn">Configurar WiFi Ahora</button>
+    </div>
+
+    <!-- Barra superior / Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="2"></circle>
+            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <h1>Tiny<span>Radio</span></h1>
+          <span class="badge-chip">ESP32-C3</span>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <!-- Selector de destino de reproducción -->
+        <div class="playback-target-selector" id="targetSelector">
+          <button class="target-btn active" id="targetWebBtn" data-target="web" title="Reproducir en los altavoces de tu móvil / ordenador">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            <span>Audio Web</span>
+          </button>
+          <button class="target-btn" id="targetEspBtn" data-target="esp32" title="Reproducir en el altavoz conectado al ESP32 (DAC I2S)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="4" width="16" height="16" rx="2"></rect>
+              <rect x="9" y="9" width="6" height="6"></rect>
+              <line x1="9" y1="1" x2="9" y2="4"></line>
+              <line x1="15" y1="1" x2="15" y2="4"></line>
+              <line x1="9" y1="20" x2="9" y2="23"></line>
+              <line x1="15" y1="20" x2="15" y2="23"></line>
+              <line x1="20" y1="9" x2="23" y2="9"></line>
+              <line x1="20" y1="14" x2="23" y2="14"></line>
+              <line x1="1" y1="9" x2="4" y2="9"></line>
+              <line x1="1" y1="14" x2="4" y2="14"></line>
+            </svg>
+            <span>Altavoz ESP32</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <button class="icon-button" id="openAddModalBtn" title="Añadir nueva estación">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+        <button class="icon-button" id="openWifiModalBtn" title="Configurar WiFi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+          </svg>
+        </button>
+        <button class="icon-button" id="openInfoModalBtn" title="Información del Sistema">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Contenido principal -->
+    <main class="app-main">
+      <!-- Sección Now Playing Hero -->
+      <section class="hero-player">
+        <div class="hero-bg-glow" id="heroGlow"></div>
+        <div class="hero-inner">
+          <div class="station-artwork-container">
+            <div class="station-artwork" id="stationArtwork">
+              <span class="genre-icon" id="heroGenreIcon">📻</span>
+              <div class="vinyl-record" id="vinylRecord"></div>
+            </div>
+            <div class="status-indicator-badge" id="liveBadge">
+              <span class="dot"></span>
+              <span id="liveText">EN ESPERA</span>
+            </div>
+          </div>
+
+          <div class="hero-info">
+            <div class="tag-row">
+              <span class="tag-badge genre-tag" id="heroGenre">Género</span>
+              <span class="tag-badge country-tag" id="heroCountry">País</span>
+              <span class="tag-badge bitrate-tag" id="heroBitrate">128 kbps</span>
+            </div>
+            <h2 class="hero-station-title" id="heroTitle">Selecciona una estación</h2>
+            <p class="hero-stream-status" id="heroSubtitle">Listo para sintonizar por internet</p>
+
+            <!-- Visualizador de audio animado -->
+            <div class="audio-visualizer" id="visualizer">
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+              <span class="bar"></span>
+            </div>
+          </div>
+
+          <!-- Controles de Reproducción Hero -->
+          <div class="hero-controls">
+            <button class="hero-ctrl-btn secondary" id="prevStationBtn" title="Estación anterior">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="19 20 9 12 19 4 19 20"></polygon>
+                <line x1="5" y1="19" x2="5" y2="5"></line>
+              </svg>
+            </button>
+            <button class="hero-ctrl-btn primary" id="playPauseBtn" title="Reproducir / Detener">
+              <svg class="play-icon" id="playIcon" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <svg class="stop-icon hidden" id="stopIcon" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+              </svg>
+            </button>
+            <button class="hero-ctrl-btn secondary" id="nextStationBtn" title="Siguiente estación">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                <line x1="19" y1="5" x2="19" y2="19"></line>
+              </svg>
+            </button>
+            <button class="hero-ctrl-btn fav-toggle" id="heroFavBtn" title="Añadir a favoritos">
+              <svg class="fav-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Barra de Volumen -->
+          <div class="hero-volume-container">
+            <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            <input type="range" min="0" max="100" value="70" class="volume-slider" id="volumeSlider">
+            <span class="vol-label" id="volumeLabel">70%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Barra de Filtros y Búsqueda -->
+      <section class="browser-controls">
+        <div class="search-input-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Buscar por estación, país o palabra clave..." autocomplete="off">
+          <button class="clear-search-btn hidden" id="clearSearchBtn">✕</button>
+        </div>
+
+        <div class="genre-chips-scroll" id="genreChips">
+          <button class="genre-chip active" data-genre="all">Todos</button>
+          <button class="genre-chip fav-chip" data-genre="fav">⭐ Favoritos</button>
+          <button class="genre-chip" data-genre="Rock">Rock</button>
+          <button class="genre-chip" data-genre="Lo-Fi">Lo-Fi</button>
+          <button class="genre-chip" data-genre="Electronic">Electrónica</button>
+          <button class="genre-chip" data-genre="Synthwave">Synthwave</button>
+          <button class="genre-chip" data-genre="Jazz">Jazz</button>
+          <button class="genre-chip" data-genre="Classical">Clásica</button>
+          <button class="genre-chip" data-genre="Chillout">Chillout</button>
+          <button class="genre-chip" data-genre="Indie">Indie</button>
+          <button class="genre-chip" data-genre="Latin">Latina</button>
+          <button class="genre-chip" data-genre="News">Noticias</button>
+        </div>
+      </section>
+
+      <!-- Grilla de Estaciones -->
+      <section class="stations-section">
+        <div class="stations-header">
+          <h3 id="stationsCount">Estaciones Disponibles</h3>
+          <span class="stations-hint" id="stationsHint">Haz clic en cualquier tarjeta para sintonizar</span>
+        </div>
+        <div class="stations-grid" id="stationsGrid"></div>
+        <div class="empty-state hidden" id="emptyState">
+          <div class="empty-icon">📻</div>
+          <h4>No se encontraron estaciones</h4>
+          <p>Prueba con otro término de búsqueda o categoría.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Elemento Audio HTML5 para reproducción en el navegador -->
+    <audio id="browserAudioPlayer" preload="none"></audio>
+
+    <!-- Modal: Añadir Nueva Estación -->
+    <div class="modal-overlay hidden" id="addModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Añadir Estación de Radio</h3>
+          <button class="modal-close-btn" id="closeAddModalBtn">✕</button>
+        </div>
+        <form class="modal-form" id="addStationForm">
+          <div class="form-group">
+            <label for="newStationName">Nombre de la Estación *</label>
+            <input type="text" id="newStationName" required placeholder="Ej. Radio Rock FM">
+          </div>
+          <div class="form-group">
+            <label for="newStationUrl">URL del Stream (MP3 o AAC) *</label>
+            <input type="url" id="newStationUrl" required placeholder="http://... o https://...">
+            <small>Debe ser una URL de streaming en directo (Icecast, Shoutcast, etc.)</small>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="newStationGenre">Género</label>
+              <select id="newStationGenre">
+                <option value="Rock">Rock</option>
+                <option value="Lo-Fi">Lo-Fi</option>
+                <option value="Electronic">Electrónica</option>
+                <option value="Synthwave">Synthwave</option>
+                <option value="Jazz">Jazz</option>
+                <option value="Classical">Clásica</option>
+                <option value="Chillout">Chillout</option>
+                <option value="Indie">Indie</option>
+                <option value="Latin">Latina</option>
+                <option value="Pop">Pop</option>
+                <option value="News">Noticias</option>
+                <option value="Ambient">Ambient</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="newStationCountry">País</label>
+              <input type="text" id="newStationCountry" placeholder="Ej. España, México, USA">
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn secondary" id="cancelAddBtn">Cancelar</button>
+            <button type="submit" class="btn primary">Guardar Estación</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Configuración WiFi -->
+    <div class="modal-overlay hidden" id="wifiModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Configuración de Red WiFi</h3>
+          <button class="modal-close-btn" id="closeWifiModalBtn">✕</button>
+        </div>
+        <div class="wifi-body">
+          <div class="wifi-scan-section">
+            <div class="wifi-scan-header">
+              <span>Redes disponibles en tu entorno</span>
+              <button class="btn-sm" id="scanWifiBtn">Escanear</button>
+            </div>
+            <div class="wifi-list" id="wifiList">
+              <div class="wifi-status-msg">Haz clic en 'Escanear' para buscar redes cercanas</div>
+            </div>
+          </div>
+          <form class="modal-form" id="wifiForm">
+            <div class="form-group">
+              <label for="wifiSSID">Nombre de Red (SSID) *</label>
+              <input type="text" id="wifiSSID" required placeholder="SSID de tu router">
+            </div>
+            <div class="form-group">
+              <label for="wifiPass">Contraseña</label>
+              <input type="password" id="wifiPass" placeholder="Contraseña de WiFi">
+            </div>
+            <div class="modal-actions">
+              <button type="button" class="btn secondary" id="cancelWifiBtn">Cerrar</button>
+              <button type="submit" class="btn primary">Conectar ESP32</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Información y Diagnóstico -->
+    <div class="modal-overlay hidden" id="infoModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Estado del ESP32-C3</h3>
+          <button class="modal-close-btn" id="closeInfoModalBtn">✕</button>
+        </div>
+        <div class="info-content">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Microcontrolador</span>
+              <span class="info-value">ESP32-C3 (RISC-V 160MHz)</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">IP Asignada</span>
+              <span class="info-value" id="infoIP">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Señal WiFi (RSSI)</span>
+              <span class="info-value" id="infoRSSI">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Memoria RAM Libre</span>
+              <span class="info-value" id="infoHeap">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Salida de Audio</span>
+              <span class="info-value" id="infoAudioMode">Audio Web / I2S</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Tiempo activo</span>
+              <span class="info-value" id="infoUptime">-</span>
+            </div>
+          </div>
+
+          <div class="audio-hardware-guide">
+            <h4>💡 Altavoz Físico en ESP32-C3</h4>
+            <p>
+              El ESP32-C3 no tiene DAC interno analógico. Para conectar un altavoz físico de 4-8Ω con sonido Hi-Fi digital, usa el módulo <strong>MAX98357A (DAC I2S + Amplificador 3W)</strong> conectado a los pines BCLK: GPIO 6, LRC: GPIO 7, DIN: GPIO 8.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
