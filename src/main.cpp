@@ -31,6 +31,7 @@ IPAddress apNetmask(255, 255, 255, 0);
 // Estado del dispositivo
 String currentSSID = "";
 String currentPass = "";
+String currentHostname = TINYRADIO_HOSTNAME;
 int currentVolume = DEFAULT_VOLUME;
 String currentStationId = "1";
 String currentStationUrl = "";
@@ -38,11 +39,24 @@ bool isPlaying = false;
 bool isApMode = false;
 unsigned long bootTime = 0;
 
+// Control para apagar el SoftAP tras mostrar la IP asignada al usuario
+bool pendingApShutdown = false;
+unsigned long apShutdownTimestamp = 0;
+
+// Control del botón físico BOOT (GPIO 9) para reset de fábrica de WiFi
+unsigned long bootBtnPressStart = 0;
+bool bootBtnPressed = false;
+
 // Prototipos
 void initFileSystem();
 void loadConfiguration();
 void saveConfiguration();
+void resetWiFiConfiguration();
+void checkResetButton();
+String sanitizeHostname(const String &raw);
 void setupWiFi();
+void startSoftAP();
+void startMDNS();
 void setupWebServer();
 void setupCaptivePortalRoutes();
 void setupAudio();
@@ -53,6 +67,9 @@ void handleNotFound();
 void setup() {
   DEBUG_SERIAL.begin(115200);
   delay(1000);
+
+  // Configurar botón físico BOOT (GPIO 9) para restablecer WiFi (mantener 3s)
+  pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
 
   DEBUG_SERIAL.println("\n========================================");
   DEBUG_SERIAL.println("  📻 TinyRadio - ESP32-C3 Starting...   ");
@@ -72,18 +89,15 @@ void setup() {
   // 4. Conectar a WiFi o activar Portal Cautivo SoftAP
   setupWiFi();
 
-  // 5. Iniciar mDNS
+  // 5. Iniciar mDNS si está conectado a red local
   if (!isApMode) {
-    if (MDNS.begin(TINYRADIO_HOSTNAME)) {
-      DEBUG_SERIAL.println("[mDNS] Disponible en http://tinyradio.local");
-      MDNS.addService("http", "tcp", 80);
-    }
+    startMDNS();
   }
 
   // 6. Configurar servidor HTTP y Portal Cautivo
   setupWebServer();
 
-  DEBUG_SERIAL.println("[OK] Sistema listo.");
+  DEBUG_SERIAL.println("[OK] Sistema listo. (Mantén pulsado BOOT 3s en cualquier momento para restablecer WiFi)");
 }
 
 // ---------------- LOOP ----------------
@@ -97,6 +111,72 @@ void loop() {
   // Si estamos en modo Punto de Acceso, atender redirecciones DNS del portal cautivo
   if (isApMode) {
     dnsServer.processNextRequest();
+  }
+
+  // Apagar SoftAP de forma diferida tras haber entregado la IP asignada al navegador
+  if (pendingApShutdown && (millis() - apShutdownTimestamp >= 25000)) {
+    pendingApShutdown = false;
+    isApMode = false;
+    dnsServer.stop();
+    WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_STA);
+    DEBUG_SERIAL.printf("[WiFi] Punto de acceso temporal cerrado. Activo en http://%s y http://%s.local\n",
+      WiFi.localIP().toString().c_str(), currentHostname.c_str());
+  }
+
+  // Comprobar si el usuario mantiene presionado el botón BOOT (GPIO 9) durante 3 seg para Reset WiFi
+  checkResetButton();
+}
+
+// ---------------- BOTÓN DE RESET Y UTILIDADES ----------------
+void checkResetButton() {
+  if (digitalRead(RESET_BUTTON_PIN) == LOW) {
+    if (!bootBtnPressed) {
+      bootBtnPressed = true;
+      bootBtnPressStart = millis();
+      DEBUG_SERIAL.println("[Botón BOOT] Presionado... mantén 3 segundos para restablecer el WiFi.");
+    } else if (millis() - bootBtnPressStart >= RESET_HOLD_TIME_MS) {
+      DEBUG_SERIAL.println("\n=================================================");
+      DEBUG_SERIAL.println("  🔄 RESET DE WIFI ACTIVADO POR BOTÓN BOOT (3s)  ");
+      DEBUG_SERIAL.println("=================================================");
+      resetWiFiConfiguration();
+    }
+  } else {
+    bootBtnPressed = false;
+  }
+}
+
+void resetWiFiConfiguration() {
+  audio.stopSong();
+  currentSSID = "";
+  currentPass = "";
+  saveConfiguration();
+  delay(500);
+  ESP.restart();
+}
+
+String sanitizeHostname(const String &raw) {
+  String clean = "";
+  for (size_t i = 0; i < raw.length() && clean.length() < 24; i++) {
+    char c = tolower(raw[i]);
+    if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-') {
+      clean += c;
+    } else if (c == ' ' || c == '_') {
+      clean += '-';
+    }
+  }
+  while (clean.startsWith("-")) clean.remove(0, 1);
+  while (clean.endsWith("-")) clean.remove(clean.length() - 1);
+  if (clean.length() == 0) clean = TINYRADIO_HOSTNAME;
+  return clean;
+}
+
+void startMDNS() {
+  MDNS.end();
+  if (MDNS.begin(currentHostname.c_str())) {
+    MDNS.addService("http", "tcp", 80);
+    DEBUG_SERIAL.printf("[mDNS] Disponible en http://%s.local (IP: %s)\n",
+      currentHostname.c_str(), WiFi.localIP().toString().c_str());
   }
 }
 
@@ -141,9 +221,10 @@ void loadConfiguration() {
       if (!deserializeJson(doc, f)) {
         currentSSID = doc["ssid"] | "";
         currentPass = doc["password"] | "";
+        currentHostname = sanitizeHostname(doc["hostname"] | TINYRADIO_HOSTNAME);
         currentVolume = doc["volume"] | DEFAULT_VOLUME;
         currentStationId = doc["currentStationId"] | "1";
-        DEBUG_SERIAL.printf("[Config] SSID guardado: '%s'\n", currentSSID.c_str());
+        DEBUG_SERIAL.printf("[Config] SSID: '%s', Hostname: '%s'\n", currentSSID.c_str(), currentHostname.c_str());
       }
       f.close();
     }
@@ -156,6 +237,7 @@ void saveConfiguration() {
     JsonDocument doc;
     doc["ssid"] = currentSSID;
     doc["password"] = currentPass;
+    doc["hostname"] = currentHostname;
     doc["volume"] = currentVolume;
     doc["currentStationId"] = currentStationId;
     serializeJson(doc, f);
@@ -165,44 +247,50 @@ void saveConfiguration() {
 }
 
 // ---------------- CONEXIÓN WIFI Y SOFTAP ----------------
+void startSoftAP() {
+  isApMode = true;
+  WiFi.mode(WIFI_AP_STA);
+  WiFi.softAPConfig(apIP, apIP, apNetmask);
+  if (strlen(DEFAULT_AP_PASS) > 0) {
+    WiFi.softAP(DEFAULT_AP_SSID, DEFAULT_AP_PASS);
+  } else {
+    WiFi.softAP(DEFAULT_AP_SSID);
+  }
+
+  // Servidor DNS para capturar cualquier dominio (* -> 192.168.4.1)
+  dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
+  dnsServer.start(53, "*", apIP);
+
+  DEBUG_SERIAL.println("=================================================");
+  DEBUG_SERIAL.println("  📶 PORTAL CAUTIVO ACTIVADO                    ");
+  DEBUG_SERIAL.printf("  1. Conéctate a la red WiFi abierta: '%s'\n", DEFAULT_AP_SSID);
+  DEBUG_SERIAL.printf("  2. Abre en el navegador: http://%s\n", apIP.toString().c_str());
+  DEBUG_SERIAL.println("=================================================");
+}
+
 void setupWiFi() {
   WiFi.mode(WIFI_STA);
+  WiFi.setHostname(currentHostname.c_str());
 
   if (currentSSID.length() > 0) {
-    DEBUG_SERIAL.printf("[WiFi] Intentando conectar a: %s\n", currentSSID.c_str());
+    DEBUG_SERIAL.printf("[WiFi] Intentando conectar a '%s' como '%s'...\n", currentSSID.c_str(), currentHostname.c_str());
     WiFi.begin(currentSSID.c_str(), currentPass.c_str());
 
     unsigned long start = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
       delay(300);
       DEBUG_SERIAL.print(".");
+      checkResetButton();
     }
     DEBUG_SERIAL.println();
   }
 
   if (WiFi.status() == WL_CONNECTED) {
     isApMode = false;
-    DEBUG_SERIAL.printf("[WiFi] ¡Conectado! IP: %s\n", WiFi.localIP().toString().c_str());
+    DEBUG_SERIAL.printf("[WiFi] ¡Conectado! IP asignada: http://%s (o http://%s.local)\n",
+      WiFi.localIP().toString().c_str(), currentHostname.c_str());
   } else {
-    // Activar SoftAP y Portal Cautivo (Red abierta sin contraseña)
-    isApMode = true;
-    WiFi.mode(WIFI_AP);
-    WiFi.softAPConfig(apIP, apIP, apNetmask);
-    if (strlen(DEFAULT_AP_PASS) > 0) {
-      WiFi.softAP(DEFAULT_AP_SSID, DEFAULT_AP_PASS);
-    } else {
-      WiFi.softAP(DEFAULT_AP_SSID);
-    }
-
-    // Servidor DNS para capturar cualquier dominio (* -> 192.168.4.1)
-    dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
-    dnsServer.start(53, "*", apIP);
-
-    DEBUG_SERIAL.println("=================================================");
-    DEBUG_SERIAL.println("  📶 PORTAL CAUTIVO ACTIVADO                    ");
-    DEBUG_SERIAL.printf("  1. Conéctate a la red WiFi abierta: '%s'\n", DEFAULT_AP_SSID);
-    DEBUG_SERIAL.printf("  2. Abre en el navegador: http://%s\n", apIP.toString().c_str());
-    DEBUG_SERIAL.println("=================================================");
+    startSoftAP();
   }
 }
 
@@ -372,8 +460,9 @@ void setupWebServer() {
     doc["currentStationId"] = currentStationId;
     doc["volume"] = currentVolume;
     doc["isApMode"] = isApMode;
-    doc["ssid"] = isApMode ? DEFAULT_AP_SSID : WiFi.SSID();
-    doc["ip"] = isApMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+    doc["hostname"] = currentHostname;
+    doc["ssid"] = (WiFi.status() == WL_CONNECTED) ? WiFi.SSID() : DEFAULT_AP_SSID;
+    doc["ip"] = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
 
     String out;
     serializeJson(doc, out);
@@ -398,7 +487,7 @@ void setupWebServer() {
     server.send(200, "application/json", out);
   });
 
-  // REST API: Guardar credenciales WiFi y reiniciar
+  // REST API: Guardar credenciales WiFi + Hostname, probar conexión y devolver IP asignada
   server.on("/api/wifi", HTTP_POST, []() {
     if (!server.hasArg("plain")) {
       server.send(400, "application/json", "{\"error\":\"Missing body\"}");
@@ -408,19 +497,78 @@ void setupWebServer() {
     deserializeJson(req, server.arg("plain"));
     String newSSID = req["ssid"] | "";
     String newPass = req["password"] | "";
+    String newHostname = sanitizeHostname(req["hostname"] | currentHostname);
 
     if (newSSID.length() == 0) {
       server.send(400, "application/json", "{\"error\":\"Empty SSID\"}");
       return;
     }
 
-    currentSSID = newSSID;
-    currentPass = newPass;
-    saveConfiguration();
+    currentHostname = newHostname;
+    WiFi.setHostname(currentHostname.c_str());
 
-    server.send(200, "application/json", "{\"success\":true,\"msg\":\"Reiniciando ESP32...\"}");
-    delay(1000);
-    ESP.restart();
+    // Mantener el AP encendido mientras intentamos conectar al router (WIFI_AP_STA)
+    if (isApMode) {
+      WiFi.mode(WIFI_AP_STA);
+    }
+    WiFi.disconnect(false);
+    delay(100);
+
+    DEBUG_SERIAL.printf("[WiFi] Probando conexión a '%s' con nombre '%s'...\n", newSSID.c_str(), currentHostname.c_str());
+    WiFi.begin(newSSID.c_str(), newPass.c_str());
+
+    unsigned long start = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - start < 12000) {
+      delay(250);
+      if (isApMode) {
+        dnsServer.processNextRequest();
+      }
+      DEBUG_SERIAL.print(".");
+    }
+    DEBUG_SERIAL.println();
+
+    if (WiFi.status() == WL_CONNECTED) {
+      currentSSID = newSSID;
+      currentPass = newPass;
+      saveConfiguration();
+      startMDNS();
+
+      String assignedIP = WiFi.localIP().toString();
+      DEBUG_SERIAL.printf("[WiFi] ¡Conectado! IP asignada por el router: %s (http://%s.local)\n",
+        assignedIP.c_str(), currentHostname.c_str());
+
+      // Si estábamos en portal cautivo, apagar el AP dentro de 25s para que el usuario vea/copie la IP primero
+      if (isApMode) {
+        pendingApShutdown = true;
+        apShutdownTimestamp = millis();
+      }
+
+      JsonDocument res;
+      res["success"] = true;
+      res["connected"] = true;
+      res["ip"] = assignedIP;
+      res["hostname"] = currentHostname;
+      res["mdns"] = String("http://") + currentHostname + ".local";
+      String out;
+      serializeJson(res, out);
+      server.send(200, "application/json", out);
+    } else {
+      DEBUG_SERIAL.println("[WiFi] Falló la conexión. Se mantiene el Portal Cautivo activo.");
+      JsonDocument res;
+      res["success"] = false;
+      res["connected"] = false;
+      res["error"] = "No se pudo conectar a la red WiFi. Verifica la contraseña e inténtalo de nuevo.";
+      String out;
+      serializeJson(res, out);
+      server.send(200, "application/json", out);
+    }
+  });
+
+  // REST API: Restablecer configuración WiFi (volver a Modo Configuración / Portal Cautivo)
+  server.on("/api/wifi/reset", HTTP_POST, []() {
+    server.send(200, "application/json", "{\"success\":true,\"msg\":\"Restableciendo WiFi y activando portal cautivo...\"}");
+    delay(600);
+    resetWiFiConfiguration();
   });
 
   // REST API: Información de hardware
@@ -431,9 +579,10 @@ void setupWebServer() {
     doc["freeHeap"] = ESP.getFreeHeap();
     doc["uptime"] = (millis() - bootTime) / 1000;
     doc["isApMode"] = isApMode;
-    doc["rssi"] = isApMode ? 0 : WiFi.RSSI();
-    doc["ssid"] = isApMode ? DEFAULT_AP_SSID : WiFi.SSID();
-    doc["ip"] = isApMode ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
+    doc["hostname"] = currentHostname;
+    doc["rssi"] = (WiFi.status() == WL_CONNECTED) ? WiFi.RSSI() : 0;
+    doc["ssid"] = (WiFi.status() == WL_CONNECTED) ? WiFi.SSID() : DEFAULT_AP_SSID;
+    doc["ip"] = (WiFi.status() == WL_CONNECTED) ? WiFi.localIP().toString() : WiFi.softAPIP().toString();
 
     String out;
     serializeJson(doc, out);

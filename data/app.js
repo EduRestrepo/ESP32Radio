@@ -83,15 +83,26 @@ const elements = {
   scanWifiBtn: document.getElementById('scanWifiBtn'),
   wifiList: document.getElementById('wifiList'),
   wifiSSID: document.getElementById('wifiSSID'),
+  deviceHostname: document.getElementById('deviceHostname'),
+  hostnamePreview: document.getElementById('hostnamePreview'),
+  wifiSubmitBtn: document.getElementById('wifiSubmitBtn'),
+  wifiSuccessBox: document.getElementById('wifiSuccessBox'),
+  wifiErrorBox: document.getElementById('wifiErrorBox'),
+  assignedIpUrl: document.getElementById('assignedIpUrl'),
+  assignedMdnsUrl: document.getElementById('assignedMdnsUrl'),
+  copyIpBtn: document.getElementById('copyIpBtn'),
+  openIpLink: document.getElementById('openIpLink'),
 
   infoModal: document.getElementById('infoModal'),
   openInfoModalBtn: document.getElementById('openInfoModalBtn'),
   closeInfoModalBtn: document.getElementById('closeInfoModalBtn'),
+  infoHostname: document.getElementById('infoHostname'),
   infoIP: document.getElementById('infoIP'),
   infoRSSI: document.getElementById('infoRSSI'),
   infoHeap: document.getElementById('infoHeap'),
   infoAudioMode: document.getElementById('infoAudioMode'),
   infoUptime: document.getElementById('infoUptime'),
+  resetWifiBtn: document.getElementById('resetWifiBtn'),
 
   toastContainer: document.getElementById('toastContainer')
 };
@@ -222,6 +233,35 @@ function initEventListeners() {
   elements.addStationForm.addEventListener('submit', handleAddStation);
   elements.scanWifiBtn.addEventListener('click', scanWifiNetworks);
   elements.wifiForm.addEventListener('submit', handleWifiConnect);
+
+  if (elements.deviceHostname) {
+    elements.deviceHostname.addEventListener('input', (e) => {
+      const clean = (e.target.value || 'tinyradio')
+        .toLowerCase()
+        .replace(/[^a-z0-9-_]/g, '-')
+        .replace(/^-+|-+$/g, '') || 'tinyradio';
+      elements.hostnamePreview.textContent = `http://${clean}.local`;
+    });
+  }
+
+  if (elements.copyIpBtn) {
+    elements.copyIpBtn.addEventListener('click', () => {
+      const urlText = elements.assignedIpUrl.textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(urlText).then(() => {
+          showToast('📋 Dirección IP copiada al portapapeles');
+        }).catch(() => {
+          prompt('Copia la dirección IP:', urlText);
+        });
+      } else {
+        prompt('Copia la dirección IP:', urlText);
+      }
+    });
+  }
+
+  if (elements.resetWifiBtn) {
+    elements.resetWifiBtn.addEventListener('click', handleResetWifi);
+  }
 }
 
 function setupModal(openBtn, closeBtn, cancelBtn, modalEl, onOpen) {
@@ -584,6 +624,11 @@ async function checkSystemStatus() {
       const status = await res.json();
       AppState.isApMode = Boolean(status.isApMode);
 
+      if (status.hostname && elements.deviceHostname) {
+        elements.deviceHostname.value = status.hostname;
+        elements.hostnamePreview.textContent = `http://${status.hostname}.local`;
+      }
+
       // Si está en modo SoftAP / Portal Cautivo, mostrar banner y sugerir configuración
       if (AppState.isApMode) {
         elements.setupBanner.classList.remove('hidden');
@@ -641,23 +686,61 @@ async function handleWifiConnect(e) {
   e.preventDefault();
   const ssid = elements.wifiSSID.value.trim();
   const password = document.getElementById('wifiPass').value;
+  const hostname = (elements.deviceHostname ? elements.deviceHostname.value.trim() : 'tinyradio') || 'tinyradio';
 
   if (!ssid) return;
 
-  showToast(`Conectando ESP32 a "${ssid}"...`);
+  elements.wifiErrorBox.classList.add('hidden');
+  elements.wifiSuccessBox.classList.add('hidden');
+
+  const originalBtnText = elements.wifiSubmitBtn.textContent;
+  elements.wifiSubmitBtn.disabled = true;
+  elements.wifiSubmitBtn.textContent = '⏳ Conectando y obteniendo IP...';
+
+  showToast(`Probando conexión a "${ssid}"...`);
 
   try {
     const res = await fetch('/api/wifi', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ssid, password })
+      body: JSON.stringify({ ssid, password, hostname })
     });
-    if (res.ok) {
-      showToast('Configuración enviada. El ESP32 se reiniciará en la nueva red.');
-      elements.wifiModal.classList.add('hidden');
+    const data = await res.json();
+
+    if (res.ok && data.connected) {
+      const ipUrl = `http://${data.ip}`;
+      const mdnsUrl = `http://${data.hostname || hostname}.local`;
+
+      elements.assignedIpUrl.textContent = ipUrl;
+      elements.assignedMdnsUrl.textContent = mdnsUrl;
+      elements.openIpLink.href = ipUrl;
+      elements.wifiSuccessBox.classList.remove('hidden');
+
+      showToast(`✅ ¡Conectado! IP asignada: ${data.ip}`);
+    } else {
+      elements.wifiErrorBox.textContent = data.error || '⚠️ No se pudo conectar a la red WiFi. Verifica la contraseña.';
+      elements.wifiErrorBox.classList.remove('hidden');
+      showToast('⚠️ Error al conectar al WiFi');
     }
   } catch (err) {
-    showToast('⚠️ No se pudo enviar configuración WiFi');
+    elements.wifiErrorBox.textContent = '⚠️ No se pudo comunicar con el ESP32. Verifica que sigues conectado a la red.';
+    elements.wifiErrorBox.classList.remove('hidden');
+  } finally {
+    elements.wifiSubmitBtn.disabled = false;
+    elements.wifiSubmitBtn.textContent = originalBtnText;
+  }
+}
+
+async function handleResetWifi() {
+  if (!confirm('¿Deseas borrar el WiFi guardado y volver al modo de configuración inicial (TinyRadio-Setup)?')) {
+    return;
+  }
+  try {
+    await fetch('/api/wifi/reset', { method: 'POST' });
+    showToast('🔄 Restableciendo WiFi... Conéctate a la red abierta "TinyRadio-Setup"');
+    elements.infoModal.classList.add('hidden');
+  } catch (err) {
+    showToast('🔄 Reiniciando ESP32 en modo configuración...');
   }
 }
 
@@ -667,6 +750,9 @@ async function onOpenInfoModal() {
     const res = await fetch('/api/hardware-info');
     if (res.ok) {
       const data = await res.json();
+      if (elements.infoHostname) {
+        elements.infoHostname.textContent = `http://${data.hostname || 'tinyradio'}.local`;
+      }
       elements.infoIP.textContent = data.ip || '192.168.4.1';
       elements.infoRSSI.textContent = `${data.rssi || 0} dBm (${data.ssid || 'AP'})`;
       elements.infoHeap.textContent = `${Math.round((data.freeHeap || 0) / 1024)} KB`;

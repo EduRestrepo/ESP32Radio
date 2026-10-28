@@ -274,31 +274,61 @@
     <div class="modal-overlay hidden" id="wifiModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>Configuración de Red WiFi</h3>
+          <h3>Configuración de Red y Dispositivo</h3>
           <button class="modal-close-btn" id="closeWifiModalBtn">✕</button>
         </div>
         <div class="wifi-body">
-          <div class="wifi-scan-section">
+          <!-- Panel de éxito con la IP asignada (se muestra al conectar) -->
+          <div class="wifi-success-box hidden" id="wifiSuccessBox">
+            <div class="wifi-success-header">✅ ¡Conectado a tu WiFi con éxito!</div>
+            <p class="wifi-success-desc">
+              Tu router le ha asignado la siguiente dirección IP. <strong>Copia o anota esta dirección</strong>, conéctate a tu WiFi normal y ábrela en el navegador para escuchar música:
+            </p>
+            <div class="assigned-ip-card">
+              <div class="assigned-ip-row">
+                <span class="assigned-label">Dirección IP (Recomendada):</span>
+                <code class="assigned-url" id="assignedIpUrl">http://192.168.1.100</code>
+              </div>
+              <div class="assigned-ip-row">
+                <span class="assigned-label">Nombre en red (mDNS):</span>
+                <code class="assigned-mdns" id="assignedMdnsUrl">http://tinyradio.local</code>
+              </div>
+              <div class="assigned-actions">
+                <button type="button" class="btn secondary btn-sm" id="copyIpBtn">📋 Copiar IP</button>
+                <a href="#" class="btn primary btn-sm" id="openIpLink" target="_blank">🚀 Abrir Radio</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mensaje de error de conexión -->
+          <div class="wifi-error-box hidden" id="wifiErrorBox"></div>
+
+          <div class="wifi-scan-section" id="wifiScanSection">
             <div class="wifi-scan-header">
               <span>Redes disponibles en tu entorno</span>
-              <button class="btn-sm" id="scanWifiBtn">Escanear</button>
+              <button type="button" class="btn-sm" id="scanWifiBtn">Escanear</button>
             </div>
             <div class="wifi-list" id="wifiList">
               <div class="wifi-status-msg">Haz clic en 'Escanear' para buscar redes cercanas</div>
             </div>
           </div>
-          <form class="modal-form" id="wifiForm">
+          <form class="modal-form" id="wifiForm" style="padding: 0;">
             <div class="form-group">
-              <label for="wifiSSID">Nombre de Red (SSID) *</label>
-              <input type="text" id="wifiSSID" required placeholder="SSID de tu router">
+              <label for="deviceHostname">Nombre del Dispositivo (en la red)</label>
+              <input type="text" id="deviceHostname" value="tinyradio" placeholder="Ej. tinyradio, radio-sala, cocina">
+              <small>Podrás entrar como <strong id="hostnamePreview">http://tinyradio.local</strong> o por su IP</small>
             </div>
             <div class="form-group">
-              <label for="wifiPass">Contraseña</label>
-              <input type="password" id="wifiPass" placeholder="Contraseña de WiFi">
+              <label for="wifiSSID">Nombre de Red WiFi (SSID) *</label>
+              <input type="text" id="wifiSSID" required placeholder="Selecciona arriba o escribe el SSID">
+            </div>
+            <div class="form-group">
+              <label for="wifiPass">Contraseña del WiFi</label>
+              <input type="password" id="wifiPass" placeholder="Contraseña de tu router">
             </div>
             <div class="modal-actions">
               <button type="button" class="btn secondary" id="cancelWifiBtn">Cerrar</button>
-              <button type="submit" class="btn primary">Conectar ESP32</button>
+              <button type="submit" class="btn primary" id="wifiSubmitBtn">Conectar y Obtener IP</button>
             </div>
           </form>
         </div>
@@ -309,14 +339,14 @@
     <div class="modal-overlay hidden" id="infoModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>Estado del ESP32-C3</h3>
+          <h3>Estado y Reset del Dispositivo</h3>
           <button class="modal-close-btn" id="closeInfoModalBtn">✕</button>
         </div>
         <div class="info-content">
           <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">Microcontrolador</span>
-              <span class="info-value">ESP32-C3 (RISC-V 160MHz)</span>
+              <span class="info-label">Nombre (mDNS)</span>
+              <span class="info-value" id="infoHostname">tinyradio.local</span>
             </div>
             <div class="info-item">
               <span class="info-label">IP Asignada</span>
@@ -341,10 +371,14 @@
           </div>
 
           <div class="audio-hardware-guide">
-            <h4>💡 Altavoz Físico en ESP32-C3</h4>
+            <h4>🔄 ¿Cómo volver a configurar o hacer Reset del WiFi?</h4>
             <p>
-              El ESP32-C3 no tiene DAC interno analógico. Para conectar un altavoz físico de 4-8Ω con sonido Hi-Fi digital, usa el módulo <strong>MAX98357A (DAC I2S + Amplificador 3W)</strong> conectado a los pines BCLK: GPIO 6, LRC: GPIO 7, DIN: GPIO 8.
+              • <strong>Con el botón físico (sin necesitar la IP):</strong> Mantén presionado el botón <strong>BOOT</strong> en la placa ESP32-C3 durante <strong>3 segundos</strong>. El dispositivo borrará el WiFi guardado y volverá a crear la red abierta <code>TinyRadio-Setup</code>.<br>
+              • <strong>Desde esta web:</strong> Usa el botón de abajo para borrar las credenciales actuales y reiniciar en modo Portal Cautivo.
             </p>
+            <div style="margin-top: 0.75rem; display: flex; justify-content: flex-end;">
+              <button type="button" class="btn danger btn-sm" id="resetWifiBtn">🔄 Restablecer WiFi de Fábrica</button>
+            </div>
           </div>
         </div>
       </div>

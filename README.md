@@ -18,10 +18,14 @@ Cuando el ESP32-C3 se enciende y no tiene ninguna red WiFi guardada (o si tu rou
      > **"Iniciar sesión en la red WiFi"** / **"Sign in to network"**
    - Al pulsar la notificación, se abre directamente la pantalla de configuración sin necesidad de escribir la IP manualmente.
 
-3. **Escaneo y Conexión**:
-   - La pantalla muestra las redes WiFi disponibles en tu casa con su nivel de señal.
-   - Seleccionas tu red, introduces la contraseña y haces clic en **Conectar ESP32**.
-   - El ESP32 guarda los datos en su memoria flash LittleFS, se reinicia y se conecta automáticamente a tu red doméstica. A partir de ese momento queda accesible en tu red local en `http://tinyradio.local`.
+3. **Nombre personalizado, Escaneo y Obtención de IP**:
+   - Puedes elegir el **Nombre del Dispositivo** (ej. `tinyradio`, `radio-sala`), con el cual aparecerá en tu router y en `http://<nombre>.local`.
+   - Seleccionas tu red WiFi, introduces la contraseña y haces clic en **Conectar y Obtener IP**.
+   - El ESP32 se conecta a tu router **sin desconectarte todavía del portal cautivo**, obtiene la dirección IP que le asigna tu router y **te la muestra en pantalla** (ej. `http://192.168.1.45`) con un botón para copiarla antes de apagar la red temporal `TinyRadio-Setup`.
+
+4. **¿Cómo hacer un Reset o volver a configurar el WiFi?**:
+   - **Con el botón físico (sin necesitar la IP)**: Mantén presionado el botón **`BOOT`** (GPIO 9) en la placa ESP32-C3 durante **3 segundos**. El dispositivo borrará el WiFi guardado, se reiniciará y volverá a activar la red abierta `TinyRadio-Setup`.
+   - **Desde la interfaz web**: Abre el botón de información (`ⓘ`) en la esquina superior derecha y pulsa **🔄 Restablecer WiFi de Fábrica**, o abre el icono de WiFi para cambiar de red o de nombre en cualquier momento.
 
 ---
 

@@ -970,11 +970,104 @@ body {
   color: var(--text-main);
 }
 
+.btn.danger {
+  background: rgba(255, 42, 133, 0.18);
+  border: 1px solid rgba(255, 42, 133, 0.45);
+  color: #ff6b9d;
+  font-weight: 700;
+}
+
+.btn.danger:hover {
+  background: rgba(255, 42, 133, 0.32);
+  color: #fff;
+}
+
 .btn-sm {
   padding: 0.35rem 0.85rem;
   border-radius: 6px;
   font-size: 0.78rem;
   font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.wifi-success-box {
+  background: rgba(0, 230, 118, 0.1);
+  border: 1px solid rgba(0, 230, 118, 0.4);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.wifi-success-header {
+  font-weight: 800;
+  font-size: 0.98rem;
+  color: var(--accent-green);
+}
+
+.wifi-success-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.assigned-ip-card {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.assigned-ip-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.assigned-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.assigned-url {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  background: rgba(0, 242, 254, 0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.assigned-mdns {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  color: var(--accent-amber);
+}
+
+.assigned-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.wifi-error-box {
+  background: rgba(255, 42, 133, 0.12);
+  border: 1px solid rgba(255, 42, 133, 0.4);
+  color: #ff85ad;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
 }
 
 /* WiFi scan list */

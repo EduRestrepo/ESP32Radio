@@ -21,6 +21,10 @@
 #define I2S_LRC_PIN     7   // Left/Right Clock (LRC / WS)
 #define I2S_DOUT_PIN    8   // Data Out (DIN)
 
+// Botón físico BOOT en ESP32-C3 (GPIO 9) para restablecer WiFi (mantener 3 seg)
+#define RESET_BUTTON_PIN 9
+#define RESET_HOLD_TIME_MS 3000
+
 // Rutas LittleFS
 #define STATIONS_FILE   "/stations.json"
 #define CONFIG_FILE     "/config.json"
