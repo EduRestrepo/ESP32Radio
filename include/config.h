@@ -10,7 +10,7 @@
 
 // Modo Punto de Acceso (AP) y Portal Cautivo
 #define DEFAULT_AP_SSID "TinyRadio-Setup"
-#define DEFAULT_AP_PASS "12345678"
+#define DEFAULT_AP_PASS "" // Red abierta (sin contraseña) para la primera configuración
 #define AP_IP_OCTET_1 192
 #define AP_IP_OCTET_2 168
 #define AP_IP_OCTET_3 4

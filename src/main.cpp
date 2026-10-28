@@ -184,11 +184,15 @@ void setupWiFi() {
     isApMode = false;
     DEBUG_SERIAL.printf("[WiFi] ¡Conectado! IP: %s\n", WiFi.localIP().toString().c_str());
   } else {
-    // Activar SoftAP y Portal Cautivo
+    // Activar SoftAP y Portal Cautivo (Red abierta sin contraseña)
     isApMode = true;
     WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(apIP, apIP, apNetmask);
-    WiFi.softAP(DEFAULT_AP_SSID, DEFAULT_AP_PASS);
+    if (strlen(DEFAULT_AP_PASS) > 0) {
+      WiFi.softAP(DEFAULT_AP_SSID, DEFAULT_AP_PASS);
+    } else {
+      WiFi.softAP(DEFAULT_AP_SSID);
+    }
 
     // Servidor DNS para capturar cualquier dominio (* -> 192.168.4.1)
     dnsServer.setErrorReplyCode(DNSReplyCode::NoError);
@@ -196,9 +200,8 @@ void setupWiFi() {
 
     DEBUG_SERIAL.println("=================================================");
     DEBUG_SERIAL.println("  📶 PORTAL CAUTIVO ACTIVADO                    ");
-    DEBUG_SERIAL.printf("  1. Conéctate a la red WiFi: '%s'\n", DEFAULT_AP_SSID);
-    DEBUG_SERIAL.printf("  2. Contraseña: '%s'\n", DEFAULT_AP_PASS);
-    DEBUG_SERIAL.printf("  3. Abre en el navegador: http://%s\n", apIP.toString().c_str());
+    DEBUG_SERIAL.printf("  1. Conéctate a la red WiFi abierta: '%s'\n", DEFAULT_AP_SSID);
+    DEBUG_SERIAL.printf("  2. Abre en el navegador: http://%s\n", apIP.toString().c_str());
     DEBUG_SERIAL.println("=================================================");
   }
 }

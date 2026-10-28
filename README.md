@@ -10,7 +10,7 @@ Cuando el ESP32-C3 se enciende y no tiene ninguna red WiFi guardada (o si tu rou
 
 1. **El ESP32 activa automáticamente un punto de acceso (SoftAP)**:
    - **Nombre de red (SSID)**: `TinyRadio-Setup`
-   - **Contraseña**: `12345678`
+   - **Seguridad**: Red abierta *(sin contraseña)*
    - **IP del dispositivo**: `192.168.4.1`
 
 2. **Detección Automática (Portal Cautivo)**:
